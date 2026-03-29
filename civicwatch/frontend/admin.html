@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicWatch — Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0e1420;
+    --surface2: #141e2e;
+    --surface3: #1a2540;
+    --border: #1e2d42;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --purple: #8b5cf6;
+    --text: #e8eef8;
+    --muted: #6b85a5;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; z-index: 200; }
+  .logo { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; padding: 0 20px 24px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; color: var(--muted); font-size: 14px; cursor: pointer; transition: all .2s; border-left: 3px solid transparent; text-decoration: none; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(59,130,246,0.1); color: var(--accent); border-left-color: var(--accent); }
+  .nav-item .icon { font-size: 17px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+
+  /* MAIN */
+  .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; }
+  .topbar-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* CONTENT PAGES */
+  .page { display: none; padding: 28px; }
+  .page.active { display: block; }
+
+  /* STAT CARDS */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; inset: 0; opacity: 0.04; background: var(--card-color, var(--accent)); }
+  .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; margin: 6px 0 4px; color: var(--card-color, var(--text)); }
+  .stat-sub { font-size: 12px; color: var(--muted); }
+  .stat-icon { position: absolute; right: 16px; top: 16px; font-size: 28px; opacity: 0.5; }
+
+  /* CHARTS ROW */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .chart-title { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  canvas { max-height: 220px; }
+
+  /* MAP */
+  .map-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .map-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; }
+  #leafletMap { height: 380px; }
+
+  /* TABLE */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .table-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--text); font-size: 13px; cursor: pointer; }
+  .search-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--text); font-size: 13px; width: 200px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  td { padding: 13px 16px; font-size: 13px; border-bottom: 1px solid rgba(30,45,66,0.6); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+  .badge-critical { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .badge-high { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .badge-medium { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .badge-low { background: rgba(16,185,129,0.15); color: #10b981; }
+  .badge-open { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .badge-progress { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .badge-resolved { background: rgba(16,185,129,0.15); color: #10b981; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; max-width: 640px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px; }
+  .modal h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; margin-bottom: 20px; }
+  .detail-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .detail-item { background: var(--surface2); border-radius: 8px; padding: 12px; }
+  .detail-item .dl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .detail-item .dv { font-size: 14px; font-weight: 500; margin-top: 3px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .status-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; flex: 1; }
+  .notes-area { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 13px; resize: vertical; min-height: 80px; margin-top: 12px; font-family: 'DM Sans', sans-serif; }
+
+  /* CHATBOT */
+  .chat-wrap { max-width: 720px; margin: 0 auto; }
+  .chat-history { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; min-height: 400px; max-height: 480px; overflow-y: auto; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; border-radius: 12px; padding: 12px 16px; font-size: 14px; line-height: 1.6; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-user { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.25); align-self: flex-end; }
+  .msg-bot { background: var(--surface2); border: 1px solid var(--border); align-self: flex-start; white-space: pre-wrap; }
+  .msg-bot.loading { color: var(--muted); font-style: italic; }
+  .chat-input-row { display: flex; gap: 10px; }
+  .chat-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color .2s; }
+  .chat-input:focus { border-color: var(--accent); }
+  .btn-chat { padding: 14px 24px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: var(--radius); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .quick-questions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .quick-q { padding: 7px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all .2s; }
+  .quick-q:hover { border-color: var(--accent); color: var(--accent); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 900px) { .stats-row { grid-template-columns: 1fr 1fr; } .charts-row { grid-template-columns: 1fr; } .sidebar { width: 60px; } .sidebar .nav-item span { display: none; } .sidebar .logo { font-size: 0; } .main { margin-left: 60px; } }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">⚡ CivicWatch</div>
+  <nav>
+    <a class="nav-item active" onclick="showPage('dashboard')" href="#"><span class="icon">📊</span><span>Dashboard</span></a>
+    <a class="nav-item" onclick="showPage('complaints')" href="#"><span class="icon">📋</span><span>Complaints</span></a>
+    <a class="nav-item" onclick="showPage('map-view')" href="#"><span class="icon">🗺️</span><span>Map View</span></a>
+    <a class="nav-item" onclick="showPage('ai-chat')" href="#"><span class="icon">🤖</span><span>AI Assistant</span></a>
+    <a class="nav-item" href="/" style="margin-top:auto"><span class="icon">🏠</span><span>Citizen Portal</span></a>
+  </nav>
+  <div class="sidebar-footer">CivicWatch v1.0<br>AI-Powered</div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <h1 id="pageTitle">📊 Dashboard Overview</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-outline" onclick="loadData()">🔄 Refresh</button>
+      <button class="btn btn-primary" onclick="exportCSV()">📥 Export CSV</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD PAGE -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats-row">
+      <div class="stat-card" style="--card-color:#3b82f6">
+        <div class="stat-label">Total Complaints</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub">All time</div>
+        <div class="stat-icon">📋</div>
+      </div>
+      <div class="stat-card" style="--card-color:#f59e0b">
+        <div class="stat-label">Open</div>
+        <div class="stat-value" id="statOpen">—</div>
+        <div class="stat-sub">Awaiting action</div>
+        <div class="stat-icon">🔓</div>
+      </div>
+      <div class="stat-card" style="--card-color:#ef4444">
+        <div class="stat-label">Critical</div>
+        <div class="stat-value" id="statCritical">—</div>
+        <div class="stat-sub">Need urgent action</div>
+        <div class="stat-icon">🚨</div>
+      </div>
+      <div class="stat-card" style="--card-color:#10b981">
+        <div class="stat-label">Resolved</div>
+        <div class="stat-value" id="statResolved">—</div>
+        <div class="stat-sub">Completed</div>
+        <div class="stat-icon">✅</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Complaints by Category</div>
+        <canvas id="chartCategory"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Priority Distribution</div>
+        <canvas id="chartPriority"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
+      <div class="chart-title">Status Breakdown</div>
+      <canvas id="chartStatus" style="max-height:140px"></canvas>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span style="font-weight:600;font-size:14px">Recent Complaints</span></div>
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody id="recentTable"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COMPLAINTS PAGE -->
+  <div class="page" id="page-complaints">
+    <div class="table-card">
+      <div class="table-header">
+        <span style="font-weight:600;font-size:14px">All Complaints</span>
+        <div class="table-filters">
+          <input class="search-input" placeholder="🔍 Search..." oninput="filterTable()" id="searchInput">
+          <select class="filter-select" id="filterStatus" onchange="fetchComplaints()">
+            <option value="">All Status</option>
+            <option>Open</option>
+            <option>In Progress</option>
+            <option>Resolved</option>
+          </select>
+          <select class="filter-select" id="filterPriority" onchange="fetchComplaints()">
+            <option value="">All Priority</option>
+            <option>Critical</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+          <select class="filter-select" id="filterCategory" onchange="fetchComplaints()">
+            <option value="">All Categories</option>
+            <option>Pothole</option>
+            <option>Garbage</option>
+            <option>Water Leakage</option>
+            <option>Street Light</option>
+            <option>Infrastructure</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Priority</th><th>Score</th><th>Status</th><th>Location</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="complaintsTable"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MAP PAGE -->
+  <div class="page" id="page-map-view">
+    <div class="map-card">
+      <div class="map-header">🗺️ Complaint Heatmap — All Geo-tagged Issues</div>
+      <div id="leafletMap"></div>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-top:8px">Only complaints with GPS coordinates appear on the map. Encourage citizens to share location when submitting.</div>
+  </div>
+
+  <!-- AI CHAT PAGE -->
+  <div class="page" id="page-ai-chat">
+    <div class="chat-wrap">
+      <div style="margin-bottom:20px">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px">🤖 AI Assistant</h2>
+        <p style="color:var(--muted);font-size:14px;margin-top:4px">Ask anything about your complaint data. Powered by Claude + RAG.</p>
+      </div>
+      <div class="quick-questions">
+        <div class="quick-q" onclick="askQuick(this)">How many open complaints?</div>
+        <div class="quick-q" onclick="askQuick(this)">What are the most critical issues?</div>
+        <div class="quick-q" onclick="askQuick(this)">Summarize complaints by category</div>
+        <div class="quick-q" onclick="askQuick(this)">Which issues need urgent attention?</div>
+        <div class="quick-q" onclick="askQuick(this)">Give me an action plan for today</div>
+      </div>
+      <div class="chat-history" id="chatHistory">
+        <div class="msg msg-bot">👋 Hello! I'm the CivicWatch AI Assistant. I can help you analyze complaint data, identify trends, and suggest action plans. What would you like to know?</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="Ask about complaints, trends, priorities..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn-chat" onclick="sendChat()">Send ➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLAINT DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px">
+      <h2 id="modalTitle">Complaint Detail</h2>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <select class="status-select" id="statusSelect">
+        <option>Open</option>
+        <option>In Progress</option>
+        <option>Resolved</option>
+      </select>
+      <button class="btn btn-primary" onclick="updateStatus()">💾 Update Status</button>
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+    </div>
+    <textarea class="notes-area" id="adminNotes" placeholder="Add admin notes here..."></textarea>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let allComplaints = [];
+let currentComplaintId = null;
+let leafletMap = null;
+let categoryChart, priorityChart, statusChart;
+
+const PRIORITY_COLORS = {
+  Critical: '#ef4444', High: '#f59e0b', Medium: '#3b82f6', Low: '#10b981'
+};
+const STATUS_COLORS = {
+  Open: '#3b82f6', 'In Progress': '#f59e0b', Resolved: '#10b981'
+};
+const CAT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+
+async function loadData() {
+  const resp = await fetch('/api/stats');
+  const stats = await resp.json();
+
+  document.getElementById('statTotal').textContent = stats.total;
+  document.getElementById('statOpen').textContent = stats.open;
+  document.getElementById('statCritical').textContent = stats.critical;
+  document.getElementById('statResolved').textContent = stats.resolved;
+
+  // Recent table
+  const tbody = document.getElementById('recentTable');
+  if (!stats.recent.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">No complaints yet. <a href="/" style="color:var(--accent)">Submit the first one!</a></td></tr>'; }
+  else { tbody.innerHTML = stats.recent.map(c => rowHTML(c)).join(''); }
+
+  // Category chart
+  const cats = stats.by_category;
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(document.getElementById('chartCategory'), {
+    type: 'doughnut',
+    data: { labels: cats.map(r=>r.category), datasets: [{ data: cats.map(r=>r.count), backgroundColor: CAT_COLORS, borderWidth: 0, hoverOffset: 6 }] },
+    options: { plugins: { legend: { labels: { color: '#6b85a5', font: { size: 12 } } } }, cutout: '60%' }
+  });
+
+  // Priority chart
+  const pri = stats.by_priority;
+  if (priorityChart) priorityChart.destroy();
+  priorityChart = new Chart(document.getElementById('chartPriority'), {
+    type: 'bar',
+    data: { labels: pri.map(r=>r.priority), datasets: [{ data: pri.map(r=>r.count), backgroundColor: pri.map(r=>PRIORITY_COLORS[r.priority]||'#6b85a5'), borderRadius: 6, borderWidth: 0 }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b85a5' }, grid: { color: '#1e2d42' } }, y: { ticks: { color: '#6b85a5' }, grid: { color: '#1e2d42' } } } }
+  });
+
+  // Status chart
+  const st = stats.by_status;
+  if (statusChart) statusChart.destroy();
+  statusChart = new Chart(document.getElementById('chartStatus'), {
+    type: 'bar',
+    data: { labels: st.map(r=>r.status), datasets: [{ data: st.map(r=>r.count), backgroundColor: st.map(r=>STATUS_COLORS[r.status]||'#6b85a5'), borderRadius: 6, borderWidth: 0 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b85a5' }, grid: { color: '#1e2d42' } }, y: { ticks: { color: '#6b85a5' }, grid: { display: false } } } }
+  });
+
+  // Map
+  if (stats.map_points.length) updateMap(stats.map_points);
+}
+
+function updateMap(points) {
+  if (!leafletMap) {
+    leafletMap = L.map('leafletMap').setView([28.4595, 77.0266], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '©OpenStreetMap ©CARTO' }).addTo(leafletMap);
+  }
+  leafletMap.eachLayer(l => { if (l instanceof L.Marker) leafletMap.removeLayer(l); });
+  points.forEach(p => {
+    const color = PRIORITY_COLORS[p.priority] || '#3b82f6';
+    const icon = L.divIcon({ className: '', html: `<div style="width:14px;height:14px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 0 6px ${color}88"></div>`, iconSize: [14,14] });
+    L.marker([p.lat, p.lng], {icon}).addTo(leafletMap)
+      .bindPopup(`<b>#${p.id} ${p.title}</b><br>Category: ${p.category}<br>Priority: <b style="color:${color}">${p.priority}</b><br>Status: ${p.status}`);
+  });
+}
+
+async function fetchComplaints() {
+  const status = document.getElementById('filterStatus')?.value || '';
+  const priority = document.getElementById('filterPriority')?.value || '';
+  const category = document.getElementById('filterCategory')?.value || '';
+  let url = '/api/complaints?';
+  if (status) url += `status=${encodeURIComponent(status)}&`;
+  if (priority) url += `priority=${encodeURIComponent(priority)}&`;
+  if (category) url += `category=${encodeURIComponent(category)}&`;
+  const resp = await fetch(url);
+  allComplaints = await resp.json();
+  renderTable(allComplaints);
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('complaintsTable');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">No complaints found</td></tr>'; return; }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td style="color:var(--muted)">#${c.id}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.title}">${c.title}</td>
+      <td>${c.category}</td>
+      <td><span class="badge badge-${(c.priority_label||'').toLowerCase()}">${c.priority_label}</span></td>
+      <td>${c.priority_score}</td>
+      <td><span class="badge badge-${c.status==='In Progress'?'progress':c.status.toLowerCase()}">${c.status}</span></td>
+      <td style="color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.location_text||'—'}</td>
+      <td style="color:var(--muted)">${new Date(c.created_at).toLocaleDateString()}</td>
+      <td><button class="btn-sm" onclick="openDetail(${c.id})">View</button></td>
+    </tr>`).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allComplaints.filter(c =>
+    c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) ||
+    (c.category||'').toLowerCase().includes(q) || (c.location_text||'').toLowerCase().includes(q)
+  );
+  renderTable(filtered);
+}
+
+function rowHTML(c) {
+  return `<tr>
+    <td style="color:var(--muted)">#${c.id}</td>
+    <td>${c.title}</td>
+    <td>${c.category}</td>
+    <td><span class="badge badge-${(c.priority_label||'').toLowerCase()}">${c.priority_label}</span></td>
+    <td><span class="badge badge-${c.status==='In Progress'?'progress':c.status.toLowerCase()}">${c.status}</span></td>
+    <td style="color:var(--muted)">${new Date(c.created_at).toLocaleDateString()}</td>
+  </tr>`;
+}
+
+async function openDetail(id) {
+  const resp = await fetch('/api/complaints/' + id);
+  const c = await resp.json();
+  currentComplaintId = id;
+  document.getElementById('modalTitle').textContent = `#${c.id} — ${c.title}`;
+  document.getElementById('statusSelect').value = c.status;
+  document.getElementById('adminNotes').value = c.admin_notes || '';
+
+  let imgHtml = '';
+  if (c.image_url) imgHtml = `<img src="${c.image_url}" style="width:100%;border-radius:10px;margin-bottom:16px;max-height:200px;object-fit:cover">`;
+
+  let cvHtml = '';
+  if (c.cv_analysis && Object.keys(c.cv_analysis).length) {
+    cvHtml = `<div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+      <b style="color:#8b5cf6">🖼️ Vision AI:</b> ${c.cv_analysis.issue_detected || ''} 
+      (${c.cv_analysis.severity || ''}, confidence: ${((c.cv_analysis.confidence||0)*100).toFixed(0)}%)
+    </div>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = `
+    ${imgHtml}
+    <p style="color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.6">${c.description}</p>
+    ${cvHtml}
+    <div class="detail-row">
+      <div class="detail-item"><div class="dl">Category</div><div class="dv">${c.category}</div></div>
+      <div class="detail-item"><div class="dl">Priority</div><div class="dv" style="color:${PRIORITY_COLORS[c.priority_label]||'#fff'}">${c.priority_label} (${c.priority_score}/10)</div></div>
+      <div class="detail-item"><div class="dl">Sentiment</div><div class="dv">${c.nlp_sentiment || '—'}</div></div>
+      <div class="detail-item"><div class="dl">Location</div><div class="dv">${c.location_text || '—'}</div></div>
+      <div class="detail-item"><div class="dl">Citizen</div><div class="dv">${c.citizen_name || 'Anonymous'}</div></div>
+      <div class="detail-item"><div class="dl">Submitted</div><div class="dv">${new Date(c.created_at).toLocaleString()}</div></div>
+    </div>
+    ${c.nlp_keywords?.length ? `<div style="margin-bottom:12px"><span style="font-size:12px;color:var(--muted)">Keywords: </span>${c.nlp_keywords.map(k=>`<span style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-size:11px;margin-right:4px">${k}</span>`).join('')}</div>` : ''}
+    ${c.ai_summary ? `<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.15);border-radius:8px;padding:12px;font-size:13px;color:var(--muted)">🤖 ${c.ai_summary}</div>` : ''}
+  `;
+
+  document.getElementById('detailModal').classList.add('open');
+}
+
+async function updateStatus() {
+  const status = document.getElementById('statusSelect').value;
+  const notes = document.getElementById('adminNotes').value;
+  await fetch('/api/complaints/' + currentComplaintId + '/status', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, admin_notes: notes })
+  });
+  closeModal();
+  fetchComplaints();
+  loadData();
+  alert('✅ Status updated!');
+}
+
+function closeModal() { document.getElementById('detailModal').classList.remove('open'); }
+document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// CHATBOT
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  appendMsg(q, 'user');
+  const loadEl = appendMsg('Thinking...', 'bot loading');
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q })
+    });
+    const data = await resp.json();
+    loadEl.textContent = data.answer;
+    loadEl.classList.remove('loading');
+  } catch {
+    loadEl.textContent = '❌ Error contacting AI. Make sure ANTHROPIC_API_KEY is set in .env';
+    loadEl.classList.remove('loading');
+  }
+}
+
+function appendMsg(text, type) {
+  const box = document.getElementById('chatHistory');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + (type.includes('user') ? 'user' : 'bot') + (type.includes('loading') ? ' loading' : '');
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function askQuick(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  sendChat();
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const titles = { dashboard: '📊 Dashboard Overview', complaints: '📋 All Complaints', 'map-view': '🗺️ Map View', 'ai-chat': '🤖 AI Assistant' };
+  document.getElementById('pageTitle').textContent = titles[name] || name;
+  if (name === 'complaints') fetchComplaints();
+  if (name === 'map-view') { setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 100); }
+}
+
+function exportCSV() {
+  const rows = [['ID','Title','Category','Priority','Score','Status','Location','Date','Description']];
+  allComplaints.forEach(c => rows.push([c.id, `"${c.title}"`, c.category, c.priority_label, c.priority_score, c.status, `"${c.location_text||''}"`, c.created_at?.split('T')[0], `"${c.description?.replace(/"/g,"'")}"`]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'civicwatch_complaints.csv';
+  a.click();
+}
+
+// Init
+loadData();
+</script>
+</body>
+</html>

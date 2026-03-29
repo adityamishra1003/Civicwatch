@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicWatch — Report an Issue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d42;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #f0f4ff;
+    --muted: #8ba0bf;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* NAV */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-links a { color: var(--muted); text-decoration: none; margin-left: 24px; font-size: 14px; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--accent); }
+
+  /* HERO */
+  .hero { text-align: center; padding: 64px 24px 40px; background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.15), transparent); }
+  .hero h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(28px, 5vw, 48px); font-weight: 700; line-height: 1.2; }
+  .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); margin-top: 12px; font-size: 16px; max-width: 500px; margin-inline: auto; }
+
+  /* STEPS */
+  .steps { display: flex; justify-content: center; gap: 32px; padding: 24px; flex-wrap: wrap; }
+  .step { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .step-num { width: 24px; height: 24px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .step.done .step-num { background: var(--success); }
+
+  /* FORM CARD */
+  .container { max-width: 760px; margin: 0 auto; padding: 0 24px 64px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; }
+  .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid .span-2 { grid-column: 1 / -1; }
+
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+  label span { color: var(--danger); }
+  input, textarea, select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+  textarea { resize: vertical; min-height: 120px; }
+  select option { background: var(--surface2); }
+
+  /* IMAGE UPLOAD */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 36px;
+    text-align: center; cursor: pointer; transition: all .2s; position: relative;
+    background: var(--surface2);
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(59,130,246,0.05); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-zone p { color: var(--muted); font-size: 14px; }
+  .upload-zone strong { color: var(--accent); }
+  .preview-img { max-width: 100%; max-height: 220px; border-radius: 10px; margin-top: 12px; object-fit: cover; display: none; }
+
+  /* GPS */
+  .gps-row { display: flex; gap: 10px; }
+  .gps-row input { flex: 1; }
+  .btn-gps {
+    padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; color: var(--muted); font-size: 18px;
+    transition: all .2s; white-space: nowrap;
+  }
+  .btn-gps:hover { border-color: var(--accent); color: var(--accent); }
+  .gps-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .gps-badge { display: none; align-items: center; gap: 6px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 8px 12px; color: var(--success); font-size: 13px; margin-top: 8px; }
+  .gps-badge.show { display: flex; }
+
+  /* SUBMIT */
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+  .btn-submit {
+    width: 100%; padding: 16px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: var(--radius); color: #fff; font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+    transition: opacity .2s, transform .1s; position: relative; overflow: hidden;
+  }
+  .btn-submit:hover { opacity: 0.92; }
+  .btn-submit:active { transform: scale(0.99); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* RESULT CARD */
+  .result { display: none; margin-top: 24px; background: var(--surface2); border-radius: var(--radius); padding: 24px; border-left: 4px solid var(--success); animation: slideIn .4s ease; }
+  .result.show { display: block; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .result h3 { font-family: 'Space Grotesk', sans-serif; color: var(--success); margin-bottom: 12px; }
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+  .result-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .result-chip .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .result-chip .value { font-weight: 600; font-size: 15px; margin-top: 2px; }
+  .priority-Critical { color: var(--danger); }
+  .priority-High { color: var(--warning); }
+  .priority-Medium { color: var(--accent); }
+  .priority-Low { color: var(--success); }
+
+  /* ERROR */
+  .error-msg { display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; color: var(--danger); font-size: 14px; margin-top: 16px; }
+  .error-msg.show { display: block; }
+
+  /* TRACKER */
+  .tracker { margin-top: 40px; }
+  .tracker h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin-bottom: 16px; }
+  .track-input { display: flex; gap: 10px; }
+  .track-input input { flex: 1; }
+  .btn-track { padding: 12px 24px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .track-result { margin-top: 16px; display: none; }
+  .track-result.show { display: block; }
+
+  /* SPINNER */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .card { padding: 24px; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">⚡ CivicWatch</div>
+  <div class="nav-links">
+    <a href="/" class="active">Report Issue</a>
+    <a href="/admin">Admin Dashboard</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Report a <span>Civic Issue</span><br>in Your Area</h1>
+  <p>AI-powered complaint system — your report is analyzed and prioritized instantly.</p>
+</div>
+
+<div class="steps">
+  <div class="step"><div class="step-num">1</div> Describe the issue</div>
+  <div class="step"><div class="step-num">2</div> Upload a photo</div>
+  <div class="step"><div class="step-num">3</div> Share location</div>
+  <div class="step"><div class="step-num">4</div> Submit — AI analyzes!</div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <form id="complaintForm" enctype="multipart/form-data">
+
+      <div class="section-title">📋 Issue Details</div>
+      <div class="form-grid">
+        <div class="span-2">
+          <label>Issue Title <span>*</span></label>
+          <input type="text" name="title" id="title" required placeholder="e.g. Large pothole on Main Street near bus stop" maxlength="200">
+        </div>
+        <div class="span-2">
+          <label>Detailed Description <span>*</span></label>
+          <textarea name="description" id="description" required placeholder="Describe the issue in detail — how severe is it, since when, how many people are affected..."></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">📸 Upload Photo (Recommended)</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" name="image" id="imageInput" accept="image/*" onchange="previewImage(this)">
+        <div class="upload-icon">🖼️</div>
+        <p><strong>Click to upload</strong> or drag & drop</p>
+        <p style="font-size:12px;margin-top:4px">JPG, PNG, WEBP — max 10MB</p>
+        <img id="previewImg" class="preview-img" alt="Preview">
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">📍 Location</div>
+      <div class="form-grid">
+        <div class="span-2">
+          <label>Location Description</label>
+          <div class="gps-row">
+            <input type="text" name="location_text" id="location_text" placeholder="e.g. Near sector 14 market, Gurugram">
+            <button type="button" class="btn-gps" onclick="getGPS()" title="Get GPS location">📡 GPS</button>
+          </div>
+          <div class="gps-badge" id="gpsBadge">✅ GPS location captured</div>
+          <div class="gps-coords" id="gpsCoords" style="display:none">
+            <input type="number" step="any" name="latitude" id="latitude" placeholder="Latitude" readonly>
+            <input type="number" step="any" name="longitude" id="longitude" placeholder="Longitude" readonly>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">👤 Your Details (Optional)</div>
+      <div class="form-grid">
+        <div>
+          <label>Full Name</label>
+          <input type="text" name="citizen_name" placeholder="Your name">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="tel" name="citizen_phone" placeholder="+91 XXXXXXXXXX">
+        </div>
+        <div class="span-2">
+          <label>Email</label>
+          <input type="email" name="citizen_email" placeholder="you@email.com">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <button type="submit" class="btn-submit" id="submitBtn">
+        🚀 Submit & Analyze with AI
+      </button>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+
+    <div class="result" id="resultCard">
+      <h3>✅ Complaint Submitted!</h3>
+      <p id="resultSummary" style="color: var(--muted); font-size: 14px; margin-top: 6px;"></p>
+      <div class="result-grid">
+        <div class="result-chip">
+          <div class="label">Complaint ID</div>
+          <div class="value" id="resId">#—</div>
+        </div>
+        <div class="result-chip">
+          <div class="label">Category</div>
+          <div class="value" id="resCategory">—</div>
+        </div>
+        <div class="result-chip">
+          <div class="label">Priority</div>
+          <div class="value" id="resPriority">—</div>
+        </div>
+        <div class="result-chip">
+          <div class="label">Score</div>
+          <div class="value" id="resScore">—</div>
+        </div>
+      </div>
+      <p id="resAiSummary" style="font-size: 13px; color: var(--muted); margin-top: 14px; line-height: 1.6;"></p>
+      <button onclick="resetForm()" style="margin-top:16px;padding:10px 20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;">Submit Another</button>
+    </div>
+  </div>
+
+  <!-- TRACKER -->
+  <div class="tracker">
+    <h2>🔍 Track Your Complaint</h2>
+    <div class="track-input">
+      <input type="number" id="trackId" placeholder="Enter complaint ID (e.g. 5)">
+      <button class="btn-track" onclick="trackComplaint()">Track</button>
+    </div>
+    <div class="track-result" id="trackResult"></div>
+  </div>
+</div>
+
+<script>
+function previewImage(input) {
+  const img = document.getElementById('previewImg');
+  if (input.files && input.files[0]) {
+    img.src = URL.createObjectURL(input.files[0]);
+    img.style.display = 'block';
+  }
+}
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('imageInput').files = e.dataTransfer.files;
+    previewImage({ files: [file] });
+  }
+});
+
+function getGPS() {
+  if (!navigator.geolocation) return alert('Geolocation not supported');
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('latitude').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('longitude').value = pos.coords.longitude.toFixed(6);
+    document.getElementById('gpsCoords').style.display = 'grid';
+    document.getElementById('gpsBadge').classList.add('show');
+    if (!document.getElementById('location_text').value) {
+      document.getElementById('location_text').value = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+    }
+  }, () => alert('Could not get location. Please allow location access.'));
+}
+
+document.getElementById('complaintForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const err = document.getElementById('errorMsg');
+  err.classList.remove('show');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing with AI...';
+
+  try {
+    const fd = new FormData(this);
+    const resp = await fetch('/api/complaints', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Submission failed');
+
+    document.getElementById('resId').textContent = '#' + data.complaint_id;
+    document.getElementById('resCategory').textContent = data.category;
+    const pl = document.getElementById('resPriority');
+    pl.textContent = data.priority_label;
+    pl.className = 'value priority-' + data.priority_label;
+    document.getElementById('resScore').textContent = data.priority_score + '/10';
+    document.getElementById('resAiSummary').textContent = '🤖 ' + (data.ai_summary || '');
+    document.getElementById('resultSummary').textContent = data.message;
+
+    document.getElementById('complaintForm').style.display = 'none';
+    document.getElementById('resultCard').classList.add('show');
+  } catch (ex) {
+    err.textContent = '❌ ' + ex.message;
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Submit & Analyze with AI';
+  }
+});
+
+function resetForm() {
+  document.getElementById('complaintForm').reset();
+  document.getElementById('complaintForm').style.display = 'block';
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('gpsBadge').classList.remove('show');
+  document.getElementById('gpsCoords').style.display = 'none';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').innerHTML = '🚀 Submit & Analyze with AI';
+}
+
+async function trackComplaint() {
+  const id = document.getElementById('trackId').value;
+  if (!id) return;
+  const el = document.getElementById('trackResult');
+  el.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  el.classList.add('show');
+  try {
+    const resp = await fetch('/api/complaints/' + id);
+    if (!resp.ok) throw new Error('Not found');
+    const c = await resp.json();
+    const statusColor = { Open: '#3b82f6', 'In Progress': '#f59e0b', Resolved: '#10b981' }[c.status] || '#8ba0bf';
+    el.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px">
+          <h4 style="font-family:'Space Grotesk',sans-serif">#${c.id} — ${c.title}</h4>
+          <span style="background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}44;border-radius:6px;padding:4px 10px;font-size:13px">${c.status}</span>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:8px">${c.description}</p>
+        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+          <span style="font-size:13px">📂 ${c.category}</span>
+          <span style="font-size:13px">🎯 ${c.priority_label} (${c.priority_score}/10)</span>
+          <span style="font-size:13px">📅 ${new Date(c.created_at).toLocaleDateString()}</span>
+        </div>
+        ${c.ai_summary ? `<p style="font-size:12px;color:var(--muted);margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px">🤖 ${c.ai_summary}</p>` : ''}
+        ${c.admin_notes ? `<p style="font-size:13px;color:#10b981;margin-top:8px">📝 Admin: ${c.admin_notes}</p>` : ''}
+      </div>`;
+  } catch {
+    el.innerHTML = '<div style="color:var(--danger)">❌ Complaint not found. Check the ID.</div>';
+  }
+}
+</script>
+</body>
+</html>
